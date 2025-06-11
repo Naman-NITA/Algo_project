@@ -1,103 +1,432 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import { useState, type ChangeEvent, type FormEvent } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, Search, Building2, Briefcase, User, Calendar, BarChart3, PieChart } from "lucide-react"
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from "chart.js"
+import { Pie, Bar } from "react-chartjs-2"
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
+
+// Define types
+type Question = {
+  text: string
+  topic: string
+  roundType: string
+  difficulty: string
+  frequency?: number
+  recency?: string
+}
+
+type SearchForm = {
+  company: string
+  role: string
+  position: string
+  year: string
+}
+
+type SearchResult = {
+  totalResults: number
+  totalQuestions: number
+  questions: Question[]
+}
+
+// Define difficulty colors
+const difficultyColors = {
+  Easy: "bg-green-100 text-green-800 border-green-200",
+  Medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  Hard: "bg-red-100 text-red-800 border-red-200",
+}
+
+// Define topic colors for charts
+const topicColors = [
+  "rgba(255, 99, 132, 0.7)", // Red
+  "rgba(54, 162, 235, 0.7)", // Blue
+  "rgba(255, 206, 86, 0.7)", // Yellow
+  "rgba(75, 192, 192, 0.7)", // Green
+  "rgba(153, 102, 255, 0.7)", // Purple
+  "rgba(255, 159, 64, 0.7)", // Orange
+  "rgba(199, 199, 199, 0.7)", // Gray
+  "rgba(83, 102, 255, 0.7)", // Indigo
+  "rgba(255, 99, 255, 0.7)", // Pink
+]
+
+export default function InterviewSearch() {
+  const [form, setForm] = useState<SearchForm>({
+    company: "",
+    role: "",
+    position: "",
+    year: "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<SearchResult | null>(null)
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setResult(null)
+
+    if (!form.company || !form.role || !form.position || !form.year) {
+      setError("All fields are required.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const params = new URLSearchParams(form).toString()
+      const res = await fetch(`https://algo-back-2.onrender.com/api/interview/search?${params}`)
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || data.message || "Something went wrong")
+      } else {
+        // If the API doesn't return properly structured data, transform it
+        const questions = Array.isArray(data.questions)
+          ? data.questions.map((q: any) => {
+              // If q is a string, try to parse it into our expected format
+              if (typeof q === "string") {
+                return {
+                  text: q,
+                  topic: "General",
+                  roundType: "Interview",
+                  difficulty: "Medium",
+                  frequency: 1,
+                  recency: new Date().toISOString(),
+                }
+              }
+              return q
+            })
+          : []
+
+        setResult({
+          totalResults: data.totalResults || 0,
+          totalQuestions: data.totalQuestions || questions.length,
+          questions,
+        })
+      }
+    } catch (err) {
+      setError("Failed to fetch data from server.")
+    }
+    setLoading(false)
+  }
+
+  // Prepare chart data
+  const prepareChartData = () => {
+    if (!result || !result.questions.length) return null
+
+    // Count questions by topic
+    const topicCounts: Record<string, number> = {}
+    result.questions.forEach((q) => {
+      topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1
+    })
+
+    // Count questions by difficulty
+    const difficultyCounts: Record<string, number> = {
+      Easy: 0,
+      Medium: 0,
+      Hard: 0,
+    }
+    result.questions.forEach((q) => {
+      if (q.difficulty in difficultyCounts) {
+        difficultyCounts[q.difficulty]++
+      } else {
+        difficultyCounts["Medium"]++ // Default if unknown
+      }
+    })
+
+    // Count questions by round type
+    const roundCounts: Record<string, number> = {}
+    result.questions.forEach((q) => {
+      roundCounts[q.roundType] = (roundCounts[q.roundType] || 0) + 1
+    })
+
+    return {
+      topics: {
+        labels: Object.keys(topicCounts),
+        datasets: [
+          {
+            data: Object.values(topicCounts),
+            backgroundColor: topicColors.slice(0, Object.keys(topicCounts).length),
+            borderWidth: 1,
+          },
+        ],
+      },
+      difficulties: {
+        labels: Object.keys(difficultyCounts),
+        datasets: [
+          {
+            label: "Questions by Difficulty",
+            data: Object.values(difficultyCounts),
+            backgroundColor: [
+              "rgba(75, 192, 192, 0.7)", // Green for Easy
+              "rgba(255, 206, 86, 0.7)", // Yellow for Medium
+              "rgba(255, 99, 132, 0.7)", // Red for Hard
+            ],
+          },
+        ],
+      },
+      rounds: {
+        labels: Object.keys(roundCounts),
+        datasets: [
+          {
+            label: "Questions by Round Type",
+            data: Object.values(roundCounts),
+            backgroundColor: "rgba(54, 162, 235, 0.7)",
+          },
+        ],
+      },
+    }
+  }
+
+  const chartData = result ? prepareChartData() : null
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold text-gray-900">Interview Questions Search</h1>
+          <p className="text-gray-600">Find interview questions based on company, role, position, and experience</p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Search Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Search Interview Questions
+            </CardTitle>
+            <CardDescription>Enter the details to find relevant interview questions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="company" className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4" />
+                    Company Name
+                  </Label>
+                  <Input
+                    id="company"
+                    name="company"
+                    placeholder="e.g., Google, Microsoft, Amazon"
+                    value={form.company}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role" className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4" />
+                    Role
+                  </Label>
+                  <Input
+                    id="role"
+                    name="role"
+                    placeholder="e.g., Software Engineer, Frontend Developer"
+                    value={form.role}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Position Level
+                  </Label>
+                  <Input
+                    id="position"
+                    name="position"
+                    placeholder="e.g., Junior, Senior, Lead"
+                    value={form.position}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="year" className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Years of Experience
+                  </Label>
+                  <Input id="year" name="year" placeholder="e.g., 2, 5, 10" value={form.year} onChange={handleChange} />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="mr-2 h-4 w-4" />
+                    Search Questions
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Error Message */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Results */}
+        {result && result.questions.length > 0 && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Search Results</CardTitle>
+                <CardDescription>
+                  Found {result.totalQuestions} questions from {result.totalResults} interview records
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="questions" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="questions">Questions</TabsTrigger>
+                    <TabsTrigger value="topics">Topics</TabsTrigger>
+                    <TabsTrigger value="difficulty">Difficulty</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="questions" className="space-y-4 pt-4">
+                    {result.questions.map((question, index) => (
+                      <Card key={index} className="overflow-hidden">
+                        <CardHeader className="bg-gray-50 py-3">
+                          <CardTitle className="text-lg">{question.text}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+                              {question.topic}
+                            </Badge>
+                            <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
+                              {question.roundType}
+                            </Badge>
+                            <Badge
+                              variant="outline"
+                              className={
+                                difficultyColors[question.difficulty as keyof typeof difficultyColors] || "bg-gray-100"
+                              }
+                            >
+                              {question.difficulty}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-x-6 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">Frequency:</span>
+                              <span>{question.frequency || "N/A"}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">Recency:</span>
+                              <span>{question.recency ? new Date(question.recency).toLocaleDateString() : "N/A"}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </TabsContent>
+
+                  <TabsContent value="topics" className="pt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <PieChart className="h-5 w-5" />
+                            Questions by Topic
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex justify-center">
+                          <div className="w-full max-w-xs aspect-square">
+                            {chartData && <Pie data={chartData.topics} options={{ responsive: true }} />}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5" />
+                            Questions by Round Type
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex justify-center">
+                          <div className="w-full h-64">
+                            {chartData && (
+                              <Bar
+                                data={chartData.rounds}
+                                options={{
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  scales: {
+                                    y: {
+                                      beginAtZero: true,
+                                      ticks: {
+                                        precision: 0,
+                                      },
+                                    },
+                                  },
+                                }}
+                              />
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="difficulty" className="pt-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Questions by Difficulty
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="flex justify-center">
+                        <div className="w-full max-w-md h-64">
+                          {chartData && (
+                            <Bar
+                              data={chartData.difficulties}
+                              options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                  y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                      precision: 0,
+                                    },
+                                  },
+                                },
+                              }}
+                            />
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+
+        )}
+      </div>
     </div>
-  );
+  )
 }
