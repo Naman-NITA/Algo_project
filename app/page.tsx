@@ -8,14 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, Building2, Briefcase, User, Calendar, BarChart3, PieChart } from "lucide-react"
+import { BarChart2, Briefcase, Building2, Calendar, Loader2, PieChart, Search, User } from 'lucide-react'
+
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from "chart.js"
 import { Pie, Bar } from "react-chartjs-2"
 
-// Register Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title)
 
-// Define types
 type Question = {
   text: string
   topic: string
@@ -38,24 +37,22 @@ type SearchResult = {
   questions: Question[]
 }
 
-// Define difficulty colors
 const difficultyColors = {
   Easy: "bg-green-100 text-green-800 border-green-200",
   Medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
   Hard: "bg-red-100 text-red-800 border-red-200",
 }
 
-// Define topic colors for charts
 const topicColors = [
-  "rgba(255, 99, 132, 0.7)", // Red
-  "rgba(54, 162, 235, 0.7)", // Blue
-  "rgba(255, 206, 86, 0.7)", // Yellow
-  "rgba(75, 192, 192, 0.7)", // Green
-  "rgba(153, 102, 255, 0.7)", // Purple
-  "rgba(255, 159, 64, 0.7)", // Orange
-  "rgba(199, 199, 199, 0.7)", // Gray
-  "rgba(83, 102, 255, 0.7)", // Indigo
-  "rgba(255, 99, 255, 0.7)", // Pink
+  "rgba(255, 99, 132, 0.7)",
+  "rgba(54, 162, 235, 0.7)",
+  "rgba(255, 206, 86, 0.7)",
+  "rgba(75, 192, 192, 0.7)",
+  "rgba(153, 102, 255, 0.7)",
+  "rgba(255, 159, 64, 0.7)",
+  "rgba(199, 199, 199, 0.7)",
+  "rgba(83, 102, 255, 0.7)",
+  "rgba(255, 99, 255, 0.7)",
 ]
 
 export default function InterviewSearch() {
@@ -87,16 +84,13 @@ export default function InterviewSearch() {
     try {
       const params = new URLSearchParams(form).toString()
       const res = await fetch(`https://algo-back-2.onrender.com/api/interview/search?${params}`)
-
       const data = await res.json()
 
       if (!res.ok) {
         setError(data.error || data.message || "Something went wrong")
       } else {
-        // If the API doesn't return properly structured data, transform it
         const questions = Array.isArray(data.questions)
           ? data.questions.map((q: any) => {
-              // If q is a string, try to parse it into our expected format
               if (typeof q === "string") {
                 return {
                   text: q,
@@ -118,36 +112,29 @@ export default function InterviewSearch() {
         })
       }
     } catch (err) {
+      console.log(err)
       setError("Failed to fetch data from server.")
     }
     setLoading(false)
   }
 
-  // Prepare chart data
   const prepareChartData = () => {
     if (!result || !result.questions.length) return null
 
-    // Count questions by topic
     const topicCounts: Record<string, number> = {}
     result.questions.forEach((q) => {
       topicCounts[q.topic] = (topicCounts[q.topic] || 0) + 1
     })
 
-    // Count questions by difficulty
-    const difficultyCounts: Record<string, number> = {
-      Easy: 0,
-      Medium: 0,
-      Hard: 0,
-    }
+    const difficultyCounts: Record<string, number> = { Easy: 0, Medium: 0, Hard: 0 }
     result.questions.forEach((q) => {
       if (q.difficulty in difficultyCounts) {
         difficultyCounts[q.difficulty]++
       } else {
-        difficultyCounts["Medium"]++ // Default if unknown
+        difficultyCounts["Medium"]++
       }
     })
 
-    // Count questions by round type
     const roundCounts: Record<string, number> = {}
     result.questions.forEach((q) => {
       roundCounts[q.roundType] = (roundCounts[q.roundType] || 0) + 1
@@ -170,11 +157,7 @@ export default function InterviewSearch() {
           {
             label: "Questions by Difficulty",
             data: Object.values(difficultyCounts),
-            backgroundColor: [
-              "rgba(75, 192, 192, 0.7)", // Green for Easy
-              "rgba(255, 206, 86, 0.7)", // Yellow for Medium
-              "rgba(255, 99, 132, 0.7)", // Red for Hard
-            ],
+            backgroundColor: ["rgba(75, 192, 192, 0.7)", "rgba(255, 206, 86, 0.7)", "rgba(255, 99, 132, 0.7)"],
           },
         ],
       },
@@ -196,13 +179,11 @@ export default function InterviewSearch() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-5xl mx-auto space-y-8">
-        {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-gray-900">Interview Questions Search</h1>
           <p className="text-gray-600">Find interview questions based on company, role, position, and experience</p>
         </div>
 
-        {/* Search Form */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -219,49 +200,30 @@ export default function InterviewSearch() {
                     <Building2 className="h-4 w-4" />
                     Company Name
                   </Label>
-                  <Input
-                    id="company"
-                    name="company"
-                    placeholder="e.g., Google, Microsoft, Amazon"
-                    value={form.company}
-                    onChange={handleChange}
-                  />
+                  <Input id="company" name="company" placeholder="e.g., Google" value={form.company} onChange={handleChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role" className="flex items-center gap-2">
                     <Briefcase className="h-4 w-4" />
                     Role
                   </Label>
-                  <Input
-                    id="role"
-                    name="role"
-                    placeholder="e.g., Software Engineer, Frontend Developer"
-                    value={form.role}
-                    onChange={handleChange}
-                  />
+                  <Input id="role" name="role" placeholder="e.g., Backend Developer" value={form.role} onChange={handleChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="position" className="flex items-center gap-2">
                     <User className="h-4 w-4" />
                     Position Level
                   </Label>
-                  <Input
-                    id="position"
-                    name="position"
-                    placeholder="e.g., Junior, Senior, Lead"
-                    value={form.position}
-                    onChange={handleChange}
-                  />
+                  <Input id="position" name="position" placeholder="e.g., SDE 2" value={form.position} onChange={handleChange} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="year" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
                     Years of Experience
                   </Label>
-                  <Input id="year" name="year" placeholder="e.g., 2, 5, 10" value={form.year} onChange={handleChange} />
+                  <Input id="year" name="year" placeholder="e.g., 3" value={form.year} onChange={handleChange} />
                 </div>
               </div>
-
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? (
                   <>
@@ -279,14 +241,12 @@ export default function InterviewSearch() {
           </CardContent>
         </Card>
 
-        {/* Error Message */}
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        {/* Results */}
         {result && result.questions.length > 0 && (
           <div className="space-y-6">
             <Card>
@@ -306,7 +266,7 @@ export default function InterviewSearch() {
 
                   <TabsContent value="questions" className="space-y-4 pt-4">
                     {result.questions.map((question, index) => (
-                      <Card key={index} className="overflow-hidden">
+                      <Card key={index}>
                         <CardHeader className="bg-gray-50 py-3">
                           <CardTitle className="text-lg">{question.text}</CardTitle>
                         </CardHeader>
@@ -318,12 +278,7 @@ export default function InterviewSearch() {
                             <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-200">
                               {question.roundType}
                             </Badge>
-                            <Badge
-                              variant="outline"
-                              className={
-                                difficultyColors[question.difficulty as keyof typeof difficultyColors] || "bg-gray-100"
-                              }
-                            >
+                            <Badge variant="outline" className={difficultyColors[question.difficulty as keyof typeof difficultyColors] || "bg-gray-100"}>
                               {question.difficulty}
                             </Badge>
                           </div>
@@ -360,7 +315,7 @@ export default function InterviewSearch() {
                       <Card>
                         <CardHeader>
                           <CardTitle className="text-lg flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5" />
+                            <BarChart2 className="h-5 w-5" />
                             Questions by Round Type
                           </CardTitle>
                         </CardHeader>
@@ -375,9 +330,7 @@ export default function InterviewSearch() {
                                   scales: {
                                     y: {
                                       beginAtZero: true,
-                                      ticks: {
-                                        precision: 0,
-                                      },
+                                      ticks: { precision: 0 },
                                     },
                                   },
                                 }}
@@ -393,7 +346,7 @@ export default function InterviewSearch() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                          <BarChart3 className="h-5 w-5" />
+                          <BarChart2 className="h-5 w-5" />
                           Questions by Difficulty
                         </CardTitle>
                       </CardHeader>
@@ -408,9 +361,7 @@ export default function InterviewSearch() {
                                 scales: {
                                   y: {
                                     beginAtZero: true,
-                                    ticks: {
-                                      precision: 0,
-                                    },
+                                    ticks: { precision: 0 },
                                   },
                                 },
                               }}
@@ -424,7 +375,6 @@ export default function InterviewSearch() {
               </CardContent>
             </Card>
           </div>
-
         )}
       </div>
     </div>
